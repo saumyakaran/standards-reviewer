@@ -1,5 +1,5 @@
 {
-  "name": "standards-reviewer",
+  "name": "@saumyakaran/standards-reviewer",
   "version": "0.1.0",
   "type": "module",
   "description": "Generic sandboxed standards-reviewer harness — a flag-only pre-human PR review filter for the semi-mechanical convention band.",
