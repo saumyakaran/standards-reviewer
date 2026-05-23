@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderReport > matches the rendered markdown snapshot 1`] = `
+"# Standards Review
+
+**Confidence:** HIGH
+
+## Tier 1 — Blocking mechanical defects (CI)
+
+- **unit-tests** — failure ([details](https://github.com/example/repo/actions/runs/1))
+
+## Tier 2 — Convention band
+
+- \`src/auth/login.ts:12\` — Use camelCase for local variables. _(naming/camelCase)_"
+`;
