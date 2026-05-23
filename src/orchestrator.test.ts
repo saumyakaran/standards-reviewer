@@ -79,6 +79,7 @@ describe("reviewCoherentPr", () => {
 
     const { runner, calls } = scriptedRunner([
       { stdout: "[]" }, // gh pr checks — no CI findings
+      { stdout: "standards-reviewer-bot\n" }, // gh api user --jq .login
       { stdout: JSON.stringify({ comments: [] }) }, // gh pr view --json comments
       { stdout: "" }, // gh pr comment — publish
     ]);
@@ -98,8 +99,8 @@ describe("reviewCoherentPr", () => {
     expect(result.report.tier2).toHaveLength(1);
     expect(result.report.tier2[0]?.message).toBe("Use camelCase for local variables.");
 
-    // The publish call (3rd) carries the rendered markdown citing the finding.
-    const publishBody = calls[2]?.args.join("\n") ?? "";
+    // Last call is the publish — it carries the rendered markdown citing the finding.
+    const publishBody = calls[calls.length - 1]?.args.join("\n") ?? "";
     expect(publishBody).toContain("src/auth/login.ts:1");
     expect(publishBody).toContain("Use camelCase for local variables.");
   });
@@ -150,6 +151,7 @@ describe("reviewCoherentPr", () => {
           { name: "build", state: "FAILURE", bucket: "fail" },
         ]),
       },
+      { stdout: "standards-reviewer-bot\n" }, // gh api user --jq .login
       { stdout: JSON.stringify({ comments: [] }) },
       { stdout: "" },
     ]);
@@ -168,13 +170,49 @@ describe("reviewCoherentPr", () => {
     expect(result.category).toBe("non-coherent");
     expect(result.report.tier1.map((f) => f.check)).toEqual(["build"]);
     expect(result.report.tier2).toEqual([]);
-    expect(calls[2]?.args.join("\n")).toContain("build");
+    expect(calls[calls.length - 1]?.args.join("\n")).toContain("build");
+  });
+
+  it("degrades cleanly when the chunk reviewer throws — still reads CI and publishes a report", async () => {
+    const reviewer: ChunkReviewer = {
+      async review() {
+        throw new Error("sandcastle exec failed");
+      },
+    };
+    const { runner, calls } = scriptedRunner([
+      {
+        stdout: JSON.stringify([{ name: "build", state: "FAILURE", bucket: "fail" }]),
+      }, // gh pr checks — CI must still be read despite the reviewer throwing
+      { stdout: "standards-reviewer-bot\n" }, // gh api user --jq .login
+      { stdout: JSON.stringify({ comments: [] }) }, // gh pr view --json comments
+      { stdout: "" }, // gh pr comment — publish
+    ]);
+    const { writer } = recordingWriter();
+
+    const result = await reviewCoherentPr({
+      diff: coherentDiff,
+      prRef: "42",
+      adapter: fixtureAdapter,
+      reviewer,
+      runner,
+      writer,
+    });
+
+    // Tier-1 CI must still surface despite the reviewer throwing.
+    expect(result.report.tier1.map((f) => f.check)).toEqual(["build"]);
+    expect(result.report.tier2).toEqual([]);
+    // Same degradation contract as unparseable chunk output: PARTIAL confidence.
+    expect(result.report.confidence).toBe("PARTIAL");
+    // The publish call must still happen.
+    expect(calls).toHaveLength(4);
+    expect(calls[calls.length - 1]?.args.join("\n")).toContain("build");
   });
 
   it("degrades report confidence when the chunk reviewer's output fails to parse", async () => {
     const reviewer = scriptedReviewer("the model could not produce JSON");
     const { runner } = scriptedRunner([
       { stdout: "[]" }, // gh pr checks — CI readable, no failures
+      { stdout: "standards-reviewer-bot\n" }, // gh api user --jq .login
       { stdout: JSON.stringify({ comments: [] }) },
       { stdout: "" },
     ]);

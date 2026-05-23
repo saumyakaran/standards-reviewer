@@ -75,7 +75,16 @@ export async function reviewCoherentPr(
   if (category === "coherent") {
     const standards = await adapter.loadStandards();
     for (const chunk of partitionDiff(diff)) {
-      const raw = await reviewer.review(chunk, standards);
+      // A reviewer throw (network/sandcastle failure) must not abort the
+      // pipeline — it would skip Tier-1 CI and suppress the report entirely.
+      // Treat it as the same degradation as unparseable chunk output.
+      let raw: string;
+      try {
+        raw = await reviewer.review(chunk, standards);
+      } catch {
+        chunkParseOk = false;
+        continue;
+      }
       const parsed = parseChunkReviewOutput(raw);
       tier2.push(...parsed.findings);
       if (!parsed.ok) chunkParseOk = false;
