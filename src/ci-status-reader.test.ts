@@ -83,7 +83,22 @@ describe("readCiStatus", () => {
     expect(result).toEqual({ findings: [], available: true });
   });
 
-  it("degrades to available=false when gh exits non-zero", async () => {
+  it("surfaces findings when gh exits non-zero but stdout has valid JSON (gh pr checks exits 1 by design when checks fail)", async () => {
+    const { runner } = fakeRunner({
+      stdout: JSON.stringify([
+        { name: "unit-tests", state: "FAILURE", bucket: "fail" },
+        { name: "lint", state: "SUCCESS", bucket: "pass" },
+      ]),
+      exitCode: 1,
+    });
+
+    const result = await readCiStatus("42", runner);
+
+    expect(result.available).toBe(true);
+    expect(result.findings).toEqual([{ check: "unit-tests", conclusion: "FAILURE" }]);
+  });
+
+  it("degrades to available=false when gh exits non-zero AND stdout is empty (e.g. auth failure)", async () => {
     const { runner } = fakeRunner({
       stdout: "",
       exitCode: 1,

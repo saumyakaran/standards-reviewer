@@ -16,7 +16,7 @@ export async function readCiStatus(
   prRef: string,
   runner: CommandRunner,
 ): Promise<CiStatusResult> {
-  const { stdout, exitCode } = await runner.run("gh", [
+  const { stdout } = await runner.run("gh", [
     "pr",
     "checks",
     prRef,
@@ -24,10 +24,10 @@ export async function readCiStatus(
     "name,state,bucket,link",
   ]);
 
-  if (exitCode !== 0) {
-    return { findings: [], available: false };
-  }
-
+  // `gh pr checks` exits non-zero whenever any check has failed, so the exit
+  // code carries no signal about availability — only the parseability of
+  // stdout does. An auth failure or unknown PR produces empty/non-JSON stdout
+  // and degrades cleanly to available=false.
   let checks: Array<{ name: string; state: string; bucket?: string; link?: string }>;
   try {
     checks = JSON.parse(stdout);
