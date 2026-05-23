@@ -5,6 +5,7 @@ import { nodeCommandRunner } from "./runners/node-command-runner.js";
 import { nodeReportWriter } from "./writers/node-report-writer.js";
 import { sandcastleReviewer } from "./chunk-reviewer/sandcastle-reviewer.js";
 import { parseUnifiedDiff } from "./diff-parser.js";
+import { validatePrRef } from "./pr-ref.js";
 import type { Diff } from "./domain/types.js";
 
 async function fetchDiffFromGh(prRef: string): Promise<Diff> {
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
     diff = await readLocalDiff(patchPath);
     outputPath = "./standards-review.md";
   } else {
-    prRef = first;
+    prRef = validatePrRef(first);
     diff = await fetchDiffFromGh(prRef);
   }
 
