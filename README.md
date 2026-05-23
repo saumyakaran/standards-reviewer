@@ -14,10 +14,10 @@ For each pull request you point it at:
 ## Install
 
 ```bash
-pnpm add -D standards-reviewer
+pnpm add -D @saumyakaran/standards-reviewer
 ```
 
-Requires **Node ≥22** and **pnpm 10+** in the consuming repo.
+Requires **Node ≥22** and **pnpm 10+** in the consuming repo. The CLI is exposed as the unscoped command `standards-reviewer`.
 
 ## Host dependencies
 
