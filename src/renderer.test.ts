@@ -3,6 +3,7 @@ import { renderReport } from "./renderer.js";
 import type { ConsolidatedReport } from "./domain/types.js";
 
 const report: ConsolidatedReport = {
+  mode: "pr",
   confidence: "HIGH",
   tier1: [
     {
@@ -53,7 +54,7 @@ describe("renderReport", () => {
   });
 
   it("renders explicit 'no findings' sections for an empty report", () => {
-    const empty: ConsolidatedReport = { confidence: "LOW", tier1: [], tier2: [] };
+    const empty: ConsolidatedReport = { mode: "pr", confidence: "LOW", tier1: [], tier2: [] };
 
     const { markdown } = renderReport(empty);
 
@@ -71,5 +72,26 @@ describe("renderReport", () => {
 
   it("matches the rendered markdown snapshot", () => {
     expect(renderReport(report).markdown).toMatchSnapshot();
+  });
+
+  it("renders Tier 1 as 'Not applicable — local mode' when mode is local", () => {
+    const local: ConsolidatedReport = { mode: "local", confidence: "HIGH", tier1: [], tier2: [] };
+
+    const { markdown } = renderReport(local);
+
+    expect(markdown).toContain("Tier 1");
+    expect(markdown).toContain("Not applicable");
+    expect(markdown).toContain("local mode");
+    expect(markdown).not.toContain("_No findings._\n\n## Tier 1");
+    // Tier 2 in this empty-findings case still uses the standard empty marker.
+    expect(markdown).toContain("Tier 2");
+  });
+
+  it("local-mode JSON carries the mode field for downstream consumers", () => {
+    const local: ConsolidatedReport = { mode: "local", confidence: "HIGH", tier1: [], tier2: [] };
+
+    const { json } = renderReport(local);
+
+    expect(json.mode).toBe("local");
   });
 });

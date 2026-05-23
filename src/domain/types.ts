@@ -13,6 +13,13 @@
 /** Overall report confidence, and per-convention-finding confidence. */
 export type Confidence = "HIGH" | "PARTIAL" | "LOW";
 
+/**
+ * Where the review came from. In `local` mode there is no PR, so CI is not
+ * applicable — the report makes that explicit and confidence is derived from
+ * the chunk-reviewer signal alone.
+ */
+export type ReviewMode = "local" | "pr";
+
 // --- Diff metadata (PR classifier input) ---------------------------------
 
 /** Per-file change counts — the intrinsic signal the classifier reads. */
@@ -95,6 +102,7 @@ export interface ConventionFinding {
 
 /** Deduplicated, ordered findings plus the overall confidence header. */
 export interface ConsolidatedReport {
+  mode: ReviewMode;
   confidence: Confidence;
   tier1: CiFinding[];
   tier2: ConventionFinding[];

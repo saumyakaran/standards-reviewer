@@ -3,15 +3,18 @@ import type {
   Confidence,
   ConsolidatedReport,
   ConventionFinding,
+  ReviewMode,
 } from "./domain/types.js";
 
 /** Inputs to consolidation: findings from both tiers, plus degradation signals. */
 export interface ConsolidateInput {
-  /** Blocking mechanical defects read from CI. */
+  /** Whether this review is for a PR (CI applies) or a local diff (no CI). */
+  mode: ReviewMode;
+  /** Blocking mechanical defects read from CI. Empty in `local` mode. */
   tier1: CiFinding[];
   /** Convention-band findings from the chunk reviewer. */
   tier2: ConventionFinding[];
-  /** False if CI status could not be read. */
+  /** False if CI status could not be read. Ignored when `mode === 'local'`. */
   ciStatusAvailable: boolean;
   /** False if any chunk's model output failed to parse cleanly. */
   chunkParseOk: boolean;
@@ -46,11 +49,21 @@ function normalizeTier1(findings: CiFinding[]): CiFinding[] {
 }
 
 /**
- * Derive the report's confidence header from two degradation signals: CI
- * status was readable, and every chunk's model output parsed cleanly. Both
- * intact => HIGH; one missing => PARTIAL; both missing => LOW.
+ * Derive the report's confidence header.
+ *
+ * In `pr` mode there are two degradation signals: CI was readable and every
+ * chunk parsed cleanly. Both intact => HIGH; one missing => PARTIAL; both
+ * missing => LOW.
+ *
+ * In `local` mode CI is not applicable, so confidence rests on the chunk
+ * signal alone: parsed => HIGH, failed => LOW.
  */
-function deriveConfidence(ciStatusAvailable: boolean, chunkParseOk: boolean): Confidence {
+function deriveConfidence(
+  mode: ReviewMode,
+  ciStatusAvailable: boolean,
+  chunkParseOk: boolean,
+): Confidence {
+  if (mode === "local") return chunkParseOk ? "HIGH" : "LOW";
   const intactSignals = Number(ciStatusAvailable) + Number(chunkParseOk);
   if (intactSignals === 2) return "HIGH";
   if (intactSignals === 1) return "PARTIAL";
@@ -59,11 +72,12 @@ function deriveConfidence(ciStatusAvailable: boolean, chunkParseOk: boolean): Co
 
 /**
  * Consolidate per-tier findings into a single report: deduplicated, ordered,
- * and stamped with an overall confidence header.
+ * and stamped with the review mode and an overall confidence header.
  */
 export function consolidateFindings(input: ConsolidateInput): ConsolidatedReport {
   return {
-    confidence: deriveConfidence(input.ciStatusAvailable, input.chunkParseOk),
+    mode: input.mode,
+    confidence: deriveConfidence(input.mode, input.ciStatusAvailable, input.chunkParseOk),
     tier1: normalizeTier1(input.tier1),
     tier2: normalizeTier2(input.tier2),
   };

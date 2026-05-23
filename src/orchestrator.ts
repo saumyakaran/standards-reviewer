@@ -91,7 +91,13 @@ export async function reviewCoherentPr(
     ciStatusAvailable = ci.available;
   }
 
-  const report = consolidateFindings({ tier1, tier2, ciStatusAvailable, chunkParseOk });
+  const report = consolidateFindings({
+    mode: prRef ? "pr" : "local",
+    tier1,
+    tier2,
+    ciStatusAvailable,
+    chunkParseOk,
+  });
   const rendered = renderReport(report);
 
   if (prRef) {

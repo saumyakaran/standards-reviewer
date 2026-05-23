@@ -38,6 +38,10 @@ export function assemblePrompt(chunk: DiffChunk, standards: string): string {
     "",
     "## Output",
     "",
+    "Always wrap your final output in a ```json fenced code block — even when",
+    "there are no findings. The harness anchors on the fence to recover your",
+    "answer from a noisy agent log; a bare answer outside a fence may be lost.",
+    "",
     "Emit a JSON array of findings, one per violation. Use this exact shape:",
     "",
     "```json",
@@ -47,6 +51,10 @@ export function assemblePrompt(chunk: DiffChunk, standards: string): string {
     "]",
     "```",
     "",
-    "If there are no violations, emit `[]`. Emit nothing else.",
+    "If there are no violations, emit an empty array inside the fence:",
+    "",
+    "```json",
+    "[]",
+    "```",
   ].join("\n");
 }

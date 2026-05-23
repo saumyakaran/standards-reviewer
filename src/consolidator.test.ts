@@ -19,6 +19,7 @@ const tier2: ConventionFinding = {
 describe("consolidateFindings", () => {
   it("collects Tier-1 and Tier-2 findings into one report", () => {
     const report = consolidateFindings({
+      mode: "pr",
       tier1: [tier1],
       tier2: [tier2],
       ciStatusAvailable: true,
@@ -38,6 +39,7 @@ describe("consolidateFindings", () => {
     };
 
     const report = consolidateFindings({
+      mode: "pr",
       tier1: [a, b],
       tier2: [],
       ciStatusAvailable: true,
@@ -53,6 +55,7 @@ describe("consolidateFindings", () => {
     const unitCheck: CiFinding = { check: "unit-tests", conclusion: "failure" };
 
     const report = consolidateFindings({
+      mode: "pr",
       tier1: [unitCheck, buildCheck, lintCheck],
       tier2: [],
       ciStatusAvailable: true,
@@ -66,6 +69,7 @@ describe("consolidateFindings", () => {
     const duplicate: ConventionFinding = { ...tier2, message: "Same violation, different phrasing." };
 
     const report = consolidateFindings({
+      mode: "pr",
       tier1: [],
       tier2: [tier2, duplicate],
       ciStatusAvailable: true,
@@ -82,6 +86,7 @@ describe("consolidateFindings", () => {
     const bFile: ConventionFinding = { ...base, file: "src/billing/invoice.ts", line: 1 };
 
     const report = consolidateFindings({
+      mode: "pr",
       tier1: [],
       tier2: [bFile, aLate, aEarly],
       ciStatusAvailable: true,
@@ -97,9 +102,10 @@ describe("consolidateFindings", () => {
     { ci: false, parse: true, expected: "PARTIAL" },
     { ci: false, parse: false, expected: "LOW" },
   ])(
-    "derives $expected confidence when ciStatusAvailable=$ci and chunkParseOk=$parse",
+    "derives $expected confidence in PR mode when ciStatusAvailable=$ci and chunkParseOk=$parse",
     ({ ci, parse, expected }) => {
       const report = consolidateFindings({
+        mode: "pr",
         tier1: [],
         tier2: [],
         ciStatusAvailable: ci,
@@ -109,4 +115,43 @@ describe("consolidateFindings", () => {
       expect(report.confidence).toBe(expected);
     },
   );
+
+  it.each([
+    { ci: false, parse: true, expected: "HIGH" },
+    { ci: false, parse: false, expected: "LOW" },
+    { ci: true, parse: true, expected: "HIGH" }, // CI signal ignored in local mode
+  ])(
+    "in local mode ignores the CI signal: ciStatusAvailable=$ci, chunkParseOk=$parse => $expected",
+    ({ ci, parse, expected }) => {
+      const report = consolidateFindings({
+        mode: "local",
+        tier1: [],
+        tier2: [],
+        ciStatusAvailable: ci,
+        chunkParseOk: parse,
+      });
+
+      expect(report.confidence).toBe(expected);
+    },
+  );
+
+  it("stamps the report with the review mode", () => {
+    const local = consolidateFindings({
+      mode: "local",
+      tier1: [],
+      tier2: [],
+      ciStatusAvailable: false,
+      chunkParseOk: true,
+    });
+    const pr = consolidateFindings({
+      mode: "pr",
+      tier1: [],
+      tier2: [],
+      ciStatusAvailable: true,
+      chunkParseOk: true,
+    });
+
+    expect(local.mode).toBe("local");
+    expect(pr.mode).toBe("pr");
+  });
 });

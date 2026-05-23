@@ -54,6 +54,14 @@ async function main(): Promise<void> {
     diff = await fetchDiffFromGh(prRef);
   }
 
+  if (diff.files.length === 0) {
+    process.stderr.write(
+      "Diff contains no file changes; nothing to review.\n" +
+        "If you meant to review a PR, check the ref or the patch file.\n",
+    );
+    process.exit(2);
+  }
+
   await reviewCoherentPr({
     diff,
     ...(prRef !== undefined ? { prRef } : {}),

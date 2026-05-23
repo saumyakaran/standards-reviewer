@@ -41,4 +41,14 @@ describe("assemblePrompt", () => {
     expect(prompt).toContain("message");
     expect(prompt).toContain("confidence");
   });
+
+  it("requires the model to wrap the output in a ```json fence even when empty", () => {
+    // Sandcastle's log file is noisy text surrounding the agent's output; the
+    // parser uses the json fence as the anchor. A bare `[]` answer survives
+    // JSON.parse on its own but disappears inside the surrounding log noise.
+    const prompt = assemblePrompt(chunk, "...");
+
+    expect(prompt).toMatch(/wrap[^\n]*```json/i);
+    expect(prompt).not.toMatch(/emit\s+`\[\]`/i);
+  });
 });
