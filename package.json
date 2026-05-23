@@ -1,15 +1,41 @@
 {
   "name": "standards-reviewer",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Generic sandboxed standards-reviewer harness — a flag-only pre-human PR review filter for the semi-mechanical convention band.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saumyakaran/standards-reviewer.git"
+  },
+  "keywords": [
+    "pr-review",
+    "code-review",
+    "standards",
+    "claude",
+    "sandcastle",
+    "gh-cli"
+  ],
+  "bin": {
+    "standards-reviewer": "./dist/main.js"
+  },
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@10.17.1",
   "scripts": {
     "start": "tsx src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "devDependencies": {
     "@types/node": "22.19.19",
