@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Generic sandboxed standards-reviewer harness — a flag-only pre-human PR review filter for the semi-mechanical convention band.",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/saumyakaran/standards-reviewer.git"
