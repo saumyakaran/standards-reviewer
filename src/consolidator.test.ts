@@ -1,18 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { consolidateFindings } from "./consolidator.js";
-import type { Finding } from "./domain/types.js";
+import type { CiFinding, ConventionFinding } from "./domain/types.js";
 
-const tier1: Finding = {
-  tier: 1,
-  file: "src/auth/login.ts",
-  line: 3,
-  standard: "ci/test-failure",
-  message: "Unit test 'mints a token' failed.",
-  confidence: "HIGH",
+const tier1: CiFinding = {
+  check: "unit-tests",
+  conclusion: "failure",
+  detailsUrl: "https://github.com/example/repo/actions/runs/1",
 };
 
-const tier2: Finding = {
-  tier: 2,
+const tier2: ConventionFinding = {
   file: "src/auth/login.ts",
   line: 12,
   standard: "naming/camelCase",
@@ -33,8 +29,41 @@ describe("consolidateFindings", () => {
     expect(report.tier2).toEqual([tier2]);
   });
 
-  it("deduplicates findings sharing the same file, line and standard", () => {
-    const duplicate: Finding = { ...tier2, message: "Same violation, different phrasing." };
+  it("deduplicates Tier-1 findings sharing the same check name", () => {
+    const a: CiFinding = { check: "unit-tests", conclusion: "failure" };
+    const b: CiFinding = {
+      check: "unit-tests",
+      conclusion: "failure",
+      detailsUrl: "https://github.com/example/repo/actions/runs/2",
+    };
+
+    const report = consolidateFindings({
+      tier1: [a, b],
+      tier2: [],
+      ciStatusAvailable: true,
+      chunkParseOk: true,
+    });
+
+    expect(report.tier1).toEqual([a]);
+  });
+
+  it("orders Tier-1 findings by check name", () => {
+    const buildCheck: CiFinding = { check: "build", conclusion: "failure" };
+    const lintCheck: CiFinding = { check: "lint", conclusion: "failure" };
+    const unitCheck: CiFinding = { check: "unit-tests", conclusion: "failure" };
+
+    const report = consolidateFindings({
+      tier1: [unitCheck, buildCheck, lintCheck],
+      tier2: [],
+      ciStatusAvailable: true,
+      chunkParseOk: true,
+    });
+
+    expect(report.tier1).toEqual([buildCheck, lintCheck, unitCheck]);
+  });
+
+  it("deduplicates convention findings sharing the same file, line and standard", () => {
+    const duplicate: ConventionFinding = { ...tier2, message: "Same violation, different phrasing." };
 
     const report = consolidateFindings({
       tier1: [],
@@ -46,11 +75,11 @@ describe("consolidateFindings", () => {
     expect(report.tier2).toEqual([tier2]);
   });
 
-  it("orders findings within a tier by file then line", () => {
-    const base = { tier: 2, standard: "naming/camelCase", message: "m", confidence: "LOW" } as const;
-    const aLate: Finding = { ...base, file: "src/auth/login.ts", line: 30 };
-    const aEarly: Finding = { ...base, file: "src/auth/login.ts", line: 5 };
-    const bFile: Finding = { ...base, file: "src/billing/invoice.ts", line: 1 };
+  it("orders convention findings within Tier 2 by file then line", () => {
+    const base = { standard: "naming/camelCase", message: "m", confidence: "LOW" } as const;
+    const aLate: ConventionFinding = { ...base, file: "src/auth/login.ts", line: 30 };
+    const aEarly: ConventionFinding = { ...base, file: "src/auth/login.ts", line: 5 };
+    const bFile: ConventionFinding = { ...base, file: "src/billing/invoice.ts", line: 1 };
 
     const report = consolidateFindings({
       tier1: [],

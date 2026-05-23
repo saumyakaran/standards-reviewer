@@ -6,17 +6,13 @@ const report: ConsolidatedReport = {
   confidence: "HIGH",
   tier1: [
     {
-      tier: 1,
-      file: "src/auth/login.ts",
-      line: 3,
-      standard: "ci/test-failure",
-      message: "Unit test 'mints a token' failed.",
-      confidence: "HIGH",
+      check: "unit-tests",
+      conclusion: "failure",
+      detailsUrl: "https://github.com/example/repo/actions/runs/1",
     },
   ],
   tier2: [
     {
-      tier: 2,
       file: "src/auth/login.ts",
       line: 12,
       standard: "naming/camelCase",
@@ -38,6 +34,14 @@ describe("renderReport", () => {
     expect(confidenceIndex).toBeGreaterThanOrEqual(0);
     expect(tier1Index).toBeGreaterThan(confidenceIndex);
     expect(tier2Index).toBeGreaterThan(tier1Index);
+  });
+
+  it("renders each Tier-1 finding citing the check name, conclusion and details link", () => {
+    const { markdown } = renderReport(report);
+
+    expect(markdown).toContain("unit-tests");
+    expect(markdown).toContain("failure");
+    expect(markdown).toContain("https://github.com/example/repo/actions/runs/1");
   });
 
   it("renders each Tier-2 finding citing file:line and the standard violated", () => {

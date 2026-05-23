@@ -2,17 +2,15 @@
  * Domain types for the standards-reviewer harness.
  *
  * Vocabulary follows issue #1: a *coherent* PR flows through the modules as
- * a Diff -> DiffChunk[] -> Finding[] -> ConsolidatedReport. The reviewer only
- * ever flags; it never modifies code and never blocks a merge.
+ * a Diff -> DiffChunk[] -> ConventionFinding[] -> ConsolidatedReport. The
+ * reviewer only ever flags; it never modifies code and never blocks a merge.
+ *
+ * Tier 1 (CI) and Tier 2 (convention band) are distinct kinds of findings —
+ * they're surfaced through different channels, carry different evidence, and
+ * cite different things in the rendered report — so they have distinct types.
  */
 
-/** A PR category. For the first slice the classifier only distinguishes `coherent`. */
-export type PrCategory = "coherent" | "non-coherent";
-
-/** Tier 1 = blocking mechanical defects from CI. Tier 2 = the convention band. */
-export type Tier = 1 | 2;
-
-/** Overall report confidence, and per-finding confidence. */
+/** Overall report confidence, and per-convention-finding confidence. */
 export type Confidence = "HIGH" | "PARTIAL" | "LOW";
 
 // --- Diff metadata (PR classifier input) ---------------------------------
@@ -28,6 +26,9 @@ export interface FileChange {
 export interface DiffMetadata {
   files: FileChange[];
 }
+
+/** A PR category. For the first slice the classifier only distinguishes `coherent`. */
+export type PrCategory = "coherent" | "non-coherent";
 
 /** Classifier tuning knobs — supplied by a consuming project's adapter. */
 export interface ClassifierThresholds {
@@ -65,9 +66,24 @@ export interface DiffChunk {
 
 // --- Findings ------------------------------------------------------------
 
-/** A single flagged issue. */
-export interface Finding {
-  tier: Tier;
+/**
+ * Tier-1 finding: a failed CI check. Read from `gh pr checks`; carries
+ * check-run level evidence (name, conclusion, link), not a file:line.
+ */
+export interface CiFinding {
+  /** The check run's name, e.g. "build", "unit-tests". */
+  check: string;
+  /** The check's conclusion, e.g. "failure", "cancelled", "timed_out". */
+  conclusion: string;
+  /** Link to the check details, when available. */
+  detailsUrl?: string;
+}
+
+/**
+ * Tier-2 finding: a convention-band violation surfaced by the chunk reviewer.
+ * Cites the location and the standard or ADR violated.
+ */
+export interface ConventionFinding {
   file: string;
   line: number;
   /** Identifier of the coding standard or ADR the change violates. */
@@ -80,6 +96,6 @@ export interface Finding {
 /** Deduplicated, ordered findings plus the overall confidence header. */
 export interface ConsolidatedReport {
   confidence: Confidence;
-  tier1: Finding[];
-  tier2: Finding[];
+  tier1: CiFinding[];
+  tier2: ConventionFinding[];
 }

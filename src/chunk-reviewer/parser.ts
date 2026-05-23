@@ -1,20 +1,20 @@
-import type { Confidence, Finding } from "../domain/types.js";
+import type { Confidence, ConventionFinding } from "../domain/types.js";
 
 const CONFIDENCE_VALUES: readonly string[] = ["HIGH", "PARTIAL", "LOW"];
 
 /** The outcome of parsing one chunk reviewer's raw model output. */
 export interface ParseResult {
-  /** Tier-2 findings recovered from the output. */
-  findings: Finding[];
+  /** Tier-2 convention findings recovered from the output. */
+  findings: ConventionFinding[];
   /** False if any part of the output was malformed — feeds the confidence header. */
   ok: boolean;
 }
 
 /**
- * Validate one raw item into a Tier-2 Finding, or return null if it is missing
- * or has the wrong type for any required field.
+ * Validate one raw item into a ConventionFinding, or return null if it is
+ * missing or has the wrong type for any required field.
  */
-function toFinding(item: unknown): Finding | null {
+function toFinding(item: unknown): ConventionFinding | null {
   if (typeof item !== "object" || item === null) return null;
   const raw = item as Record<string, unknown>;
 
@@ -25,14 +25,24 @@ function toFinding(item: unknown): Finding | null {
   if (typeof message !== "string" || message === "") return null;
   if (typeof confidence !== "string" || !CONFIDENCE_VALUES.includes(confidence)) return null;
 
-  return { tier: 2, file, line, standard, message, confidence: confidence as Confidence };
+  return { file, line, standard, message, confidence: confidence as Confidence };
 }
 
-/** Unwrap a ```` ```json ```` fence if the model wrapped its output in one. */
-function stripCodeFence(raw: string): string {
+/**
+ * Pull the JSON payload out of the model's raw output.
+ *
+ * The output can be (a) just JSON, (b) a single ```` ```json ```` fence, or
+ * (c) noisy agent-log text containing one or more fences — in which case the
+ * LAST fence wins (later thinking supersedes earlier drafts).
+ */
+function extractJson(raw: string): string {
   const trimmed = raw.trim();
-  const fenced = /^```(?:json)?\s*\n([\s\S]*?)\n```$/.exec(trimmed);
-  return fenced ? fenced[1]! : trimmed;
+  const fenceRegex = /```(?:json)?\s*\n([\s\S]*?)\n```/g;
+  let lastMatch: RegExpExecArray | null = null;
+  for (let m = fenceRegex.exec(trimmed); m !== null; m = fenceRegex.exec(trimmed)) {
+    lastMatch = m;
+  }
+  return lastMatch ? lastMatch[1]! : trimmed;
 }
 
 /**
@@ -44,7 +54,7 @@ function stripCodeFence(raw: string): string {
 export function parseChunkReviewOutput(raw: string): ParseResult {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripCodeFence(raw));
+    parsed = JSON.parse(extractJson(raw));
   } catch {
     return { findings: [], ok: false };
   }
@@ -52,7 +62,7 @@ export function parseChunkReviewOutput(raw: string): ParseResult {
     return { findings: [], ok: false };
   }
 
-  const findings: Finding[] = [];
+  const findings: ConventionFinding[] = [];
   let ok = true;
   for (const item of parsed) {
     const finding = toFinding(item);

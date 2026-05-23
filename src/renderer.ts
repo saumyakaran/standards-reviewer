@@ -1,4 +1,4 @@
-import type { ConsolidatedReport, Finding } from "./domain/types.js";
+import type { CiFinding, ConsolidatedReport, ConventionFinding } from "./domain/types.js";
 
 /** A rendered report in both human (markdown) and machine (JSON) forms. */
 export interface RenderedReport {
@@ -7,14 +7,20 @@ export interface RenderedReport {
   json: ConsolidatedReport;
 }
 
-/** Render one finding as a bullet citing `file:line`, the message and the standard. */
-function renderFinding(finding: Finding): string {
+/** Render a Tier-1 CI finding citing the check name, its conclusion, and a link if present. */
+function renderCiFinding(finding: CiFinding): string {
+  const link = finding.detailsUrl ? ` ([details](${finding.detailsUrl}))` : "";
+  return `- **${finding.check}** — ${finding.conclusion}${link}`;
+}
+
+/** Render a Tier-2 convention finding citing `file:line`, the message and the standard. */
+function renderConventionFinding(finding: ConventionFinding): string {
   return `- \`${finding.file}:${finding.line}\` — ${finding.message} _(${finding.standard})_`;
 }
 
 /** Render a tier as a heading followed by its findings, or an explicit empty note. */
-function renderSection(heading: string, findings: Finding[]): string[] {
-  const body = findings.length > 0 ? findings.map(renderFinding) : ["_No findings._"];
+function renderSection<T>(heading: string, findings: T[], render: (f: T) => string): string[] {
+  const body = findings.length > 0 ? findings.map(render) : ["_No findings._"];
   return [heading, "", ...body];
 }
 
@@ -28,9 +34,9 @@ export function renderReport(report: ConsolidatedReport): RenderedReport {
     "",
     `**Confidence:** ${report.confidence}`,
     "",
-    ...renderSection("## Tier 1 — Blocking mechanical defects (CI)", report.tier1),
+    ...renderSection("## Tier 1 — Blocking mechanical defects (CI)", report.tier1, renderCiFinding),
     "",
-    ...renderSection("## Tier 2 — Convention band", report.tier2),
+    ...renderSection("## Tier 2 — Convention band", report.tier2, renderConventionFinding),
   ].join("\n");
 
   return { markdown, json: report };

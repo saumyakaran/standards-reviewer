@@ -18,7 +18,6 @@ describe("parseChunkReviewOutput", () => {
     expect(result.ok).toBe(true);
     expect(result.findings).toEqual([
       {
-        tier: 2,
         file: "src/auth/login.ts",
         line: 12,
         standard: "naming/camelCase",
@@ -59,6 +58,38 @@ describe("parseChunkReviewOutput", () => {
 
     expect(result.ok).toBe(false);
     expect(result.findings).toEqual([]);
+  });
+
+  it("extracts the last JSON code fence from arbitrary surrounding text", () => {
+    const raw = [
+      "Let me look at this diff carefully.",
+      "",
+      "```json",
+      "[]",
+      "```",
+      "",
+      "Actually, on a second pass, here are the real findings:",
+      "",
+      "```json",
+      JSON.stringify([
+        {
+          file: "src/auth/login.ts",
+          line: 1,
+          standard: "naming/camelCase",
+          message: "Use camelCase.",
+          confidence: "HIGH",
+        },
+      ]),
+      "```",
+      "",
+      "Done.",
+    ].join("\n");
+
+    const result = parseChunkReviewOutput(raw);
+
+    expect(result.ok).toBe(true);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]?.file).toBe("src/auth/login.ts");
   });
 
   it("drops a finding missing a required field and flags the output as degraded", () => {
